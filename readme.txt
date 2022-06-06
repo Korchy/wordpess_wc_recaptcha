@@ -1,5 +1,5 @@
 === Plugin Name ===
-Contributors: Nikita Akimov
+Contributors: korchiy
 Donate link: 
 Tags: woocommerce, recaptcha, login, register, lost password, form, user,
 Requires at least: 6.0
