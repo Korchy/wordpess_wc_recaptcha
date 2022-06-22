@@ -18,9 +18,10 @@ if(!defined('ABSPATH')) {
 
 // add Google reCAPTCHA .js only on login page
 function wc_recaptcha_enqueue_script() {
-	// if this is page with 'woocommerce_my_account' shortcode
+	// if this is page with 'woocommerce_my_account' or 'woocommerce_checkout' shortcode
 	global $post;
-	if(is_page() && $post && has_shortcode($post->post_content, 'woocommerce_my_account')) {
+	if(is_page() && $post 
+			&& (has_shortcode($post->post_content, 'woocommerce_my_account') || has_shortcode($post->post_content, 'woocommerce_checkout'))) {
 		wp_enqueue_script('recaptcha', '//www.google.com/recaptcha/api.js', '', '', true);
 	}
 }
@@ -140,6 +141,22 @@ function wc_recaptcha_check_lost_password($errors, $user_id) {
 }
 
 add_filter('allow_password_reset', 'wc_recaptcha_check_lost_password', 10, 3);
+
+
+// ---------- reCAPTCHA - checkout (validation is not required - the same with register form)
+
+// embed reCAPTCHA - checkout form
+
+function wc_recaptcha_embed_checkout() {
+	// embed reCAPTCHA to checkout form
+	$plugin_options = get_option('wc_recaptcha_plugin_options');
+	$recaptcha_site_key = $plugin_options['wc_recaptcha_site_key'];
+
+	echo '<p id="recaptcha" class="g-recaptcha" data-sitekey="'.$recaptcha_site_key.'"></p>';
+}
+
+add_action('woocommerce_after_checkout_registration_form', 'wc_recaptcha_embed_checkout', 15);
+
 
 // ---------- settings menu
 
