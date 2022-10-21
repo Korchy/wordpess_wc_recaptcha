@@ -16,7 +16,7 @@ if(!defined('ABSPATH')) {
 
 // ---------- add .js for working with google api
 
-// add Google reCAPTCHA .js only on login page
+// add Google reCAPTCHA .js only on login/checkout page
 function wc_recaptcha_enqueue_script() {
 	// if this is page with 'woocommerce_my_account' or 'woocommerce_checkout' shortcode
 	global $post;
@@ -123,14 +123,49 @@ function wc_recaptcha_embed_lost_password() {
 
 add_action('woocommerce_lostpassword_form', 'wc_recaptcha_embed_lost_password', 15);
 
+
+// check secret (lost password form)
+
+function wc_recapthca_check_secret_lp($recaptcha_first_responce) {
+	// check reCAPTCHA with secret
+	//	separate function for LOST PASSWORD because it is called 2 times, and on the second call recaptcha fails
+	$rez = false;
+	session_start();
+	// second call
+	if(isset($_SESSION['wc_recaptcha']) && isset($_SESSION['wc_recaptcha']['lost_password'])) {
+		// if it is second call - return rezult from the first call
+		$rez = $_SESSION['wc_recaptcha']['lost_password'];
+		unset($_SESSION['wc_recaptcha']['lost_password']);
+		return $rez;
+	}
+	// first call
+	if($recaptcha_first_responce) {
+		$plugin_options = get_option('wc_recaptcha_plugin_options');
+		$recaptcha_secret = $plugin_options['wc_recaptcha_secret_key'];
+		$response = wp_remote_get('https://www.google.com/recaptcha/api/siteverify?secret=' . $recaptcha_secret . '&response=' . $recaptcha_first_responce);
+		$response_code = wp_remote_retrieve_response_code($response);
+		if($response_code == 200) {
+			$response = json_decode($response['body'], true);
+			// OK or Fail
+			$rez = ($response['success'] ? true : false);
+			// if this is first call - save result to get is later, in the second call
+			if($rez == true) {
+				session_start();
+				$_SESSION['wc_recaptcha']['lost_password'] = $rez;
+			}
+		}
+	}
+	return $rez;
+}
+
+
 // validate reCAPTCHA (lost password form)
 
 function wc_recaptcha_check_lost_password($errors, $user_id) {
 	// check Google reCAPTCHA on Lost Password form
 	if(isset($_POST['g-recaptcha-response']) && $_POST['g-recaptcha-response']) {
 		// check with secret
-		$check_secret = wc_recapthca_check_secret($_POST['g-recaptcha-response']);
-		var_dump($check_secret);
+		$check_secret = wc_recapthca_check_secret_lp($_POST['g-recaptcha-response']);
 		if($check_secret){
 			// OK
 			return $errors;
@@ -140,7 +175,7 @@ function wc_recaptcha_check_lost_password($errors, $user_id) {
 	return new WP_Error('Captcha Faild', __('Bot auth protection by Google reCAPTCHA'));
 }
 
-add_filter('allow_password_reset', 'wc_recaptcha_check_lost_password', 10, 3);
+add_filter('allow_password_reset', 'wc_recaptcha_check_lost_password', 10, 2);
 
 
 // ---------- reCAPTCHA - checkout (validation is not required - the same with register form)
